@@ -10,7 +10,10 @@ export const colors = {
   violet: '#9B6DFF',
   cyan: '#FF8A4C',
   orange: '#FF8A4C',
+  orangeDark: '#C85016',
   peach: '#FFE2D0',
+  lavenderWash: '#F0E8FF',
+  orangeWash: '#FFF0E7',
 };
 
 export const spacing = { xs: 6, sm: 10, md: 16, lg: 24, xl: 32, xxl: 48 };

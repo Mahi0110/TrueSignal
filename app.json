@@ -5,10 +5,20 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "truesignal",
-    "userInterfaceStyle": "dark",
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.truesignal.app" },
-    "android": { "package": "com.truesignal.app" }
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.truesignal.app"
+    },
+    "android": {
+      "package": "com.truesignal.app"
+    }
   }
 }

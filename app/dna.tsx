@@ -12,16 +12,62 @@ import {
 } from 'react-native';
 import { colors, radius, spacing } from '@/constants/theme';
 
-const POSITIONS = [
-  { top: 20, left: '39%' },
-  { top: 83, left: '5%' },
-  { top: 76, right: '4%' },
-  { top: 180, left: '2%' },
-  { top: 186, right: '1%' },
-  { bottom: 56, left: '14%' },
-  { bottom: 42, right: '12%' },
-  { bottom: 4, left: '41%' },
+const MAP_HEIGHT = 390;
+const NODE_POINTS = [
+  { x: 0.50, y: 0.05 },
+  { x: 0.16, y: 0.23 },
+  { x: 0.84, y: 0.21 },
+  { x: 0.10, y: 0.52 },
+  { x: 0.90, y: 0.52 },
+  { x: 0.23, y: 0.79 },
+  { x: 0.77, y: 0.80 },
+  { x: 0.50, y: 0.91 },
 ] as const;
+
+const EDGES = [
+  [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 6], [8, 7],
+  [0, 1], [0, 2], [1, 3], [1, 5], [2, 4], [2, 6], [3, 5], [4, 6], [5, 7], [6, 7],
+] as const;
+
+function point(index: number, width: number) {
+  if (index === 8) return { x: width / 2, y: MAP_HEIGHT / 2 };
+  return { x: NODE_POINTS[index].x * width, y: NODE_POINTS[index].y * MAP_HEIGHT };
+}
+
+function NetworkLine({
+  from, to, width, reveal, flow, active,
+}: {
+  from: number; to: number; width: number; reveal: Animated.Value; flow: Animated.Value; active: boolean;
+}) {
+  const a = point(from, width);
+  const b = point(to, width);
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  const angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.thread,
+        active && styles.threadActive,
+        {
+          width: length,
+          left: (a.x + b.x) / 2 - length / 2,
+          top: (a.y + b.y) / 2,
+          opacity: reveal.interpolate({ inputRange: [0, 1], outputRange: [0, active ? 0.88 : 0.38] }),
+          transform: [{ rotate: `${angle}deg` }, { scaleX: reveal }],
+        },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.threadParticle,
+          active && styles.threadParticleActive,
+          { transform: [{ translateX: flow.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(length - 7, 0)] }) }] },
+        ]}
+      />
+    </Animated.View>
+  );
+}
 
 const FALLBACK_INTERESTS = [
   'Artificial Intelligence',
@@ -57,9 +103,12 @@ export default function DnaScreen() {
   const headerIn = useRef(new Animated.Value(0)).current;
   const mapIn = useRef(new Animated.Value(0)).current;
   const insightIn = useRef(new Animated.Value(0)).current;
-  const nodeAnims = useRef(POSITIONS.map(() => new Animated.Value(0))).current;
+  const nodeAnims = useRef(NODE_POINTS.map(() => new Animated.Value(0))).current;
+  const lineAnims = useRef(EDGES.map(() => new Animated.Value(0))).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
+  const threadFlow = useRef(new Animated.Value(0)).current;
+  const [mapWidth, setMapWidth] = useState(680);
 
   const title = archetype(items);
   const rare = items.length >= 3 ? `${items[0]} × ${items[1]} × ${items[2]}` : items.join(' × ');
@@ -70,6 +119,9 @@ export default function DnaScreen() {
       Animated.spring(headerIn, { toValue: 1, damping: 18, stiffness: 115, mass: 0.8, useNativeDriver: true }),
       Animated.parallel([
         Animated.spring(mapIn, { toValue: 1, damping: 18, stiffness: 100, mass: 0.9, useNativeDriver: true }),
+        Animated.stagger(42, lineAnims.map(value =>
+          Animated.timing(value, { toValue: 1, duration: 440, easing: Easing.out(Easing.cubic), useNativeDriver: true })
+        )),
         Animated.stagger(65, nodeAnims.slice(0, items.length).map(value =>
           Animated.spring(value, { toValue: 1, damping: 13, stiffness: 150, mass: 0.7, useNativeDriver: true })
         )),
@@ -86,14 +138,19 @@ export default function DnaScreen() {
     const orbitLoop = Animated.loop(
       Animated.timing(orbit, { toValue: 1, duration: 22000, easing: Easing.linear, useNativeDriver: true })
     );
+    const threadLoop = Animated.loop(
+      Animated.timing(threadFlow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.cubic), useNativeDriver: true })
+    );
     pulseLoop.start();
     orbitLoop.start();
+    threadLoop.start();
 
     return () => {
       pulseLoop.stop();
       orbitLoop.stop();
+      threadLoop.stop();
     };
-  }, [headerIn, insightIn, items.length, mapIn, nodeAnims, orbit, pulse]);
+  }, [headerIn, insightIn, items.length, lineAnims, mapIn, nodeAnims, orbit, pulse, threadFlow]);
 
   const enter = (value: Animated.Value, distance = 18) => ({
     opacity: value,
@@ -125,13 +182,20 @@ export default function DnaScreen() {
             <View style={styles.legend}><View style={styles.legendDot} /><Text style={styles.legendText}>STRONG</Text></View>
           </View>
 
-          <View style={styles.map}>
-            <View style={[styles.connection, styles.lineNorth]} />
-            <View style={[styles.connection, styles.lineEast]} />
-            <View style={[styles.connection, styles.lineSouth]} />
-            <View style={[styles.connection, styles.lineWest]} />
+          <View style={styles.map} onLayout={event => setMapWidth(event.nativeEvent.layout.width)}>
             <View style={styles.ringOuter} />
             <View style={styles.ringInner} />
+            {EDGES.map(([from, to], index) => (
+              <NetworkLine
+                key={`${from}-${to}`}
+                from={from}
+                to={to}
+                width={mapWidth}
+                reveal={lineAnims[index]}
+                flow={threadFlow}
+                active={from === focusedIndex || to === focusedIndex || from === 8}
+              />
+            ))}
             <Animated.View style={[styles.markerOrbit, { transform: [{ rotate: orbitRotation }] }]}>
               <View style={styles.orbitDotPurple} />
               <View style={styles.orbitDotOrange} />
@@ -144,7 +208,7 @@ export default function DnaScreen() {
             </View>
 
             {items.map((item, index) => {
-              const position = POSITIONS[index % POSITIONS.length];
+              const position = NODE_POINTS[index % NODE_POINTS.length];
               const value = nodeAnims[index];
               const isHot = index < 3;
               const isFocused = focused === item;
@@ -153,7 +217,7 @@ export default function DnaScreen() {
                   key={item}
                   style={[
                     styles.nodeWrap,
-                    position,
+                    { left: position.x * mapWidth - 59, top: position.y * MAP_HEIGHT - 15 },
                     {
                       opacity: value,
                       transform: [
@@ -252,17 +316,16 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
   legendText: { color: colors.muted, fontSize: 7, fontWeight: '900', letterSpacing: 1 },
-  map: { height: 374, position: 'relative', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: spacing.xs },
+  map: { height: MAP_HEIGHT, position: 'relative', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: spacing.xs },
   ringOuter: { position: 'absolute', width: 286, height: 286, borderRadius: 143, borderWidth: 1, borderColor: colors.border },
   ringInner: { position: 'absolute', width: 176, height: 176, borderRadius: 88, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.signalSoft },
   markerOrbit: { position: 'absolute', width: 286, height: 286, borderRadius: 143 },
   orbitDotPurple: { position: 'absolute', left: 23, top: 37, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.signal },
   orbitDotOrange: { position: 'absolute', right: 9, bottom: 84, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
-  connection: { position: 'absolute', left: '50%', top: '50%', height: 1, backgroundColor: colors.border },
-  lineNorth: { width: 154, transform: [{ rotate: '-90deg' }] },
-  lineEast: { width: 150, transform: [{ rotate: '-18deg' }] },
-  lineSouth: { width: 150, transform: [{ rotate: '76deg' }] },
-  lineWest: { width: 145, transform: [{ rotate: '-158deg' }] },
+  thread: { position: 'absolute', height: 1, backgroundColor: '#CFC2E3', zIndex: 1 },
+  threadActive: { height: 1.5, backgroundColor: colors.signal },
+  threadParticle: { position: 'absolute', left: 0, top: -2, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.violet, opacity: 0.5 },
+  threadParticleActive: { width: 7, height: 7, borderRadius: 4, top: -3, backgroundColor: colors.orange, opacity: 0.95 },
   corePulse: { position: 'absolute', width: 94, height: 94, borderRadius: 47, backgroundColor: colors.signalSoft },
   core: { width: 88, height: 88, borderRadius: 31, backgroundColor: colors.signal, alignItems: 'center', justifyContent: 'center', zIndex: 3, transform: [{ rotate: '-3deg' }], shadowColor: colors.signal, shadowOpacity: 0.2, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 4 },
   coreSmall: { fontSize: 7, fontWeight: '900', letterSpacing: 1.3, color: '#FFFFFF', opacity: 0.68 },

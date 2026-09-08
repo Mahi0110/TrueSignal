@@ -145,7 +145,11 @@ export default function Discover() {
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
 
   const prepareIntro = () => {
-    if (!ready) setIntroReady(value => [...value, active.handle]);
+    if (ready) {
+      router.push({ pathname: '/offer', params: { creator: active.name, project: active.possibility } } as never);
+      return;
+    }
+    setIntroReady(value => [...value, active.handle]);
   };
 
   return (
@@ -236,7 +240,7 @@ export default function Discover() {
             <Text style={styles.passText}>Not the right fit</Text>
           </TouchableOpacity>
           <TouchableOpacity accessibilityRole="button" onPress={prepareIntro} style={[styles.introButton, { backgroundColor: active.accent }]}>
-            <Text style={styles.introButtonText}>{ready ? 'Introduction ready ✓' : `Start a conversation with ${active.name.split(' ')[0]}`}</Text>
+            <Text style={styles.introButtonText}>{ready ? 'Build this collaboration →' : `Start a conversation with ${active.name.split(' ')[0]}`}</Text>
           </TouchableOpacity>
         </Animated.View>
         <Text style={styles.footerNote}>No follower race. No cold pitch. Just a clear reason to make something together.</Text>

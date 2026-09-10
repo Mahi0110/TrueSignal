@@ -108,6 +108,7 @@ export default function DnaScreen() {
   const pulse = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
   const threadFlow = useRef(new Animated.Value(0)).current;
+  const drift = useRef(new Animated.Value(0)).current;
   const [mapWidth, setMapWidth] = useState(680);
 
   const title = archetype(items);
@@ -141,16 +142,24 @@ export default function DnaScreen() {
     const threadLoop = Animated.loop(
       Animated.timing(threadFlow, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.cubic), useNativeDriver: true })
     );
+    const driftLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
     pulseLoop.start();
     orbitLoop.start();
     threadLoop.start();
+    driftLoop.start();
 
     return () => {
       pulseLoop.stop();
       orbitLoop.stop();
       threadLoop.stop();
+      driftLoop.stop();
     };
-  }, [headerIn, insightIn, items.length, lineAnims, mapIn, nodeAnims, orbit, pulse, threadFlow]);
+  }, [drift, headerIn, insightIn, items.length, lineAnims, mapIn, nodeAnims, orbit, pulse, threadFlow]);
 
   const enter = (value: Animated.Value, distance = 18) => ({
     opacity: value,
@@ -222,7 +231,8 @@ export default function DnaScreen() {
                       opacity: value,
                       transform: [
                         { scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
-                        { translateY: value.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+                        { translateY: Animated.add(value.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }), drift.interpolate({ inputRange: [0, 1], outputRange: [index % 2 ? -4 : 5, index % 2 ? 5 : -4] })) },
+                        { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [index % 3 - 2, 2 - index % 3] }) },
                       ],
                     },
                   ]}
@@ -309,7 +319,7 @@ const styles = StyleSheet.create({
   signalTotal: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   title: { color: colors.text, fontSize: 36, lineHeight: 40, fontWeight: '900', letterSpacing: -1.25, marginTop: spacing.md, maxWidth: 620 },
   body: { color: colors.muted, fontSize: 15, lineHeight: 23, marginTop: spacing.sm, maxWidth: 620 },
-  mapCard: { marginTop: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: spacing.md, shadowColor: colors.signal, shadowOpacity: 0.08, shadowRadius: 20, shadowOffset: { width: 0, height: 12 }, elevation: 3 },
+  mapCard: { marginTop: spacing.lg, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(117,72,255,0.18)', padding: spacing.md, shadowColor: colors.signal, shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 4 },
   mapTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   mapLabel: { color: colors.signal, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   mapHint: { color: colors.muted, fontSize: 10, marginTop: 4 },
@@ -342,13 +352,13 @@ const styles = StyleSheet.create({
   portal: { position: 'absolute', right: 5, bottom: 62, alignItems: 'center', zIndex: 5 },
   portalDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.orange, color: colors.orangeDark, textAlign: 'center', lineHeight: 31, fontSize: 20, fontWeight: '500', backgroundColor: colors.orangeWash },
   portalText: { color: colors.orangeDark, fontSize: 7, fontWeight: '900', letterSpacing: 1.1, marginTop: 4 },
-  inspectCard: { minHeight: 118, borderRadius: radius.md, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  inspectCard: { minHeight: 118, borderRadius: radius.md, backgroundColor: 'rgba(255,249,245,0.68)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.85)', padding: spacing.md, shadowColor: colors.signal, shadowOpacity: 0.08, shadowRadius: 16 },
   inspectTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   inspectLabel: { color: colors.signal, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
   inspectStrength: { color: colors.orangeDark, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   inspectTitle: { color: colors.text, fontSize: 19, fontWeight: '900', marginTop: 7 },
   inspectText: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 5 },
-  discovery: { flexDirection: 'row', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, marginTop: spacing.md },
+  discovery: { flexDirection: 'row', gap: spacing.md, backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(117,72,255,0.16)', marginTop: spacing.md, shadowColor: colors.signal, shadowOpacity: 0.08, shadowRadius: 18 },
   discoveryMark: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.peach, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '7deg' }] },
   discoveryMarkCore: { width: 13, height: 13, borderRadius: 7, backgroundColor: colors.orange },
   discoveryCopy: { flex: 1 },

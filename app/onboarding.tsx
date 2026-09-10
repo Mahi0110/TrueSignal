@@ -90,7 +90,7 @@ export default function Onboarding() {
     if (!selected.some(item => item.toLowerCase() === value.toLowerCase())) setSelected(current => [...current, value]);
     setCustomNiche('');
   };
-  const go = () => ready && router.replace({ pathname: '/dna', params: { interests: selected.join(','), creatorRole } });
+  const go = () => ready && router.replace({ pathname: '/reveal' as any, params: { interests: selected.join(','), creatorRole } });
   return (
     <SafeAreaView style={styles.page}>
       <Animated.View pointerEvents="none" style={[styles.ambientPurple, { transform: [{ translateY: pulse.interpolate({ inputRange: [0,1], outputRange: [-8,12] }) }] }]} />

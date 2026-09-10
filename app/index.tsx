@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Animated, Easing, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { colors, radius, spacing } from '@/constants/theme';
 
 const STEPS = [
@@ -10,6 +10,7 @@ const STEPS = [
 ];
 
 export default function WelcomeScreen() {
+  const [showWelcome, setShowWelcome] = useState(true);
   const { width } = useWindowDimensions();
   const compact = width < 820;
   const navIn = useRef(new Animated.Value(0)).current;
@@ -52,6 +53,25 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
+      <Modal visible={showWelcome} transparent animationType="fade" onRequestClose={() => setShowWelcome(false)}>
+        <View style={intro.overlay}>
+          <ScrollView contentContainerStyle={intro.center}>
+            <View style={intro.card} accessibilityViewIsModal>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close introduction" onPress={() => setShowWelcome(false)} style={intro.close}><Text style={intro.closeText}>×</Text></TouchableOpacity>
+              <Text style={intro.eyebrow}>WELCOME TO TRUESIGNAL</Text>
+              <Text accessibilityRole="header" style={intro.title}>Small creators.{ '\n' }Real collaborators.</Text>
+              <Text style={intro.body}>Our goal is simple: help you find people to create with through shared interests and complementary skills—not follower counts.</Text>
+              <View style={intro.steps}>
+                <Text style={intro.step}>01  Choose the interests that matter to you.</Text>
+                <Text style={intro.step}>02  Explore how they connect in your Interest DNA.</Text>
+                <Text style={intro.step}>03  Discover creators and start a conversation about what you could make together.</Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" style={intro.button} onPress={() => { setShowWelcome(false); router.push('/onboarding'); }}><Text style={intro.buttonText}>Find my creative connections →</Text></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" style={intro.dismiss} onPress={() => setShowWelcome(false)}><Text style={intro.dismissText}>Explore the app first</Text></TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
       <View pointerEvents="none" style={styles.purpleGlow} />
       <View pointerEvents="none" style={styles.orangeGlow} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -116,6 +136,23 @@ export default function WelcomeScreen() {
     </SafeAreaView>
   );
 }
+
+const intro = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(23,17,46,0.65)' },
+  center: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 22 },
+  card: { width: '100%', maxWidth: 520, padding: 28, borderRadius: 28, backgroundColor: '#FFF9F5', borderWidth: 1, borderColor: '#E6D9FF' },
+  close: { alignSelf: 'flex-end', width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  closeText: { color: '#756D83', fontSize: 28 },
+  eyebrow: { color: '#7548FF', fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  title: { color: '#17112E', fontSize: 32, lineHeight: 37, fontWeight: '900', marginTop: 12 },
+  body: { color: '#645B73', fontSize: 15, lineHeight: 23, marginTop: 14 },
+  steps: { backgroundColor: '#EFE6FF', padding: 18, borderRadius: 18, gap: 14, marginVertical: 22 },
+  step: { color: '#392657', fontSize: 13, lineHeight: 20 },
+  button: { backgroundColor: '#FF8954', borderRadius: 16, padding: 18, alignItems: 'center' },
+  buttonText: { color: '#17112E', fontSize: 14, fontWeight: '800', textAlign: 'center' },
+  dismiss: { padding: 16, alignItems: 'center' },
+  dismissText: { color: '#7548FF', fontSize: 13, fontWeight: '700' },
+});
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#FFF9F5' },

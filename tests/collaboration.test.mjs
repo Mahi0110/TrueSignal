@@ -99,6 +99,22 @@ test("real PostgreSQL policies and RPCs protect the full collaboration and Audie
         "utf8",
       ),
     );
+    await db.exec(
+      await fs.readFile(
+        new URL(
+          "../supabase/migrations/20260915083734_harden_profile_trigger_access.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const triggerAccess = await db.query(
+      "select has_function_privilege('anon','public.handle_new_user()','EXECUTE') as anon_access, has_function_privilege('authenticated','public.handle_new_user()','EXECUTE') as authenticated_access",
+    );
+    assert.deepEqual(triggerAccess.rows[0], {
+      anon_access: false,
+      authenticated_access: false,
+    });
     for (const id of [A, B, C])
       await db.query("insert into auth.users(id) values($1)", [id]);
     const as = async (id) => {

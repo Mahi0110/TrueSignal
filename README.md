@@ -30,8 +30,9 @@ Apply migrations in order to the intended Supabase project:
 
 - `supabase/migrations/20260903_initial_schema.sql`
 - `supabase/migrations/20260915_collaboration_flow.sql`
+- `supabase/migrations/20260915083734_harden_profile_trigger_access.sql`
 
-If the initial migration is already installed, apply only the new migration. Configure email authentication and confirmation redirect URLs for the app. These source changes do not apply migrations to a live project.
+If the initial schema is already installed, apply only the remaining migrations. Check the live schema as well as migration history: the original schema can have been installed manually, and applying files through the dashboard or connector can assign a different migration version. Configure email authentication and confirmation redirect URLs for the app. Cloning or building this app does not apply database migrations automatically.
 
 ## Data and permissions
 
@@ -51,6 +52,10 @@ npm run build:web
 Tests run the migrations and permissions in an isolated PGlite PostgreSQL database using synthetic accounts. They cover acceptance, private messages, blocking, reports, Audience Share approval and post ownership, duplicate requests, and outcome events. UI component tests exercise category/niche navigation, preserved selections, search, custom interests, and the selection cap.
 
 PGlite supplies `gen_random_uuid` without installing `pgcrypto`; the test harness omits only that extension declaration. These tests do not replace a staging Supabase smoke test. Browser visual QA and native store transactions also require separate verification in an environment that can open the app.
+
+`tests/live_smoke.sql` verifies the deployed signup trigger, collaboration functions, participant permissions, Audience Share, blocking, and reports in the Supabase SQL editor. It uses three synthetic accounts inside a transaction and rolls back every sample row without sending emails. It verifies database roles and functions, not the end-to-end Auth HTTP or app UI flow.
+
+The signup trigger is internal and has no client execution grant. Signed-in creators intentionally retain access to the validated collaboration functions; the Supabase advisor flags these `SECURITY DEFINER` functions for review. Their actor and participant checks are covered by the local and live tests. See the [Supabase advisor guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
 
 ## Stack
 

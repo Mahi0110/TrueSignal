@@ -1,10 +1,214 @@
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, radius, spacing } from '@/constants/theme';
-
-const creators=[
- {name:'Maya',role:'3D artist + animator',score:91,shared:'AI · Storytelling',edge:'Your computer vision + Maya’s animation could become an interactive character.'},
- {name:'Arun',role:'Hardware maker',score:86,shared:'Robotics · Open Source',edge:'You share robotics, while Arun adds prototyping and hardware experience.'},
- {name:'Noor',role:'Filmmaker + designer',score:82,shared:'Film · Design',edge:'A complementary match for visual storytelling and creative technology projects.'}
-];
-export default function Discover(){return <SafeAreaView style={styles.page}><View style={styles.header}><View><Text style={styles.kicker}>DISCOVER</Text><Text style={styles.title}>People worth knowing.</Text></View><View style={styles.avatar}><Text style={styles.avatarText}>TS</Text></View></View><Text style={styles.body}>Ranked by creative compatibility — never follower count.</Text><ScrollView contentContainerStyle={styles.list}>{creators.map((c,i)=><View key={c.name} style={styles.card}><View style={styles.row}><View style={styles.person}><Text style={styles.number}>0{i+1}</Text><View><Text style={styles.name}>{c.name}</Text><Text style={styles.role}>{c.role}</Text></View></View><Text style={styles.score}>{c.score}%</Text></View><Text style={styles.shared}>{c.shared}</Text><View style={styles.why}><Text style={styles.whyLabel}>WHY THIS MATCH</Text><Text style={styles.whyText}>{c.edge}</Text></View><TouchableOpacity style={styles.action}><Text style={styles.actionText}>Explore connection →</Text></TouchableOpacity></View>)}</ScrollView></SafeAreaView>}
-const styles=StyleSheet.create({page:{flex:1,backgroundColor:colors.background,padding:spacing.lg},header:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginTop:spacing.sm},kicker:{color:colors.signal,fontSize:11,fontWeight:'900',letterSpacing:1.8},title:{color:colors.text,fontSize:30,fontWeight:'900',letterSpacing:-.8,marginTop:4},avatar:{width:42,height:42,borderRadius:21,backgroundColor:colors.surfaceRaised,alignItems:'center',justifyContent:'center'},avatarText:{color:colors.signal,fontWeight:'900'},body:{color:colors.muted,marginTop:spacing.sm,marginBottom:spacing.md},list:{gap:14,paddingBottom:30},card:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.lg},row:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},person:{flexDirection:'row',gap:12,alignItems:'center'},number:{color:colors.muted,fontSize:11,fontWeight:'900'},name:{color:colors.text,fontSize:22,fontWeight:'900'},role:{color:colors.muted,fontSize:12,marginTop:2},score:{color:colors.signal,fontSize:24,fontWeight:'900'},shared:{color:colors.signalSoft,fontWeight:'800',marginTop:spacing.lg},why:{borderTopWidth:1,borderColor:colors.border,marginTop:spacing.md,paddingTop:spacing.md},whyLabel:{color:colors.cyan,fontSize:9,fontWeight:'900',letterSpacing:1.5},whyText:{color:colors.text,lineHeight:21,marginTop:6},action:{marginTop:spacing.md},actionText:{color:colors.signal,fontWeight:'900'}});
+import { useCallback, useState } from "react";
+import { Text, View } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Button, Chips, Loading, Notice, Page, ui } from "@/components/ui";
+import { useApp } from "@/lib/AppContext";
+import { usePurchases } from "@/lib/PurchaseContext";
+import { profiles, errorMessage } from "@/lib/api";
+import { recommend, FORMATS, AVAILABILITY, type Profile } from "@/lib/matching";
+import { shareDna } from "@/lib/sharing";
+export default function Discover() {
+  const { session, profile, loading: authLoading } = useApp();
+  const { active } = usePurchases();
+  const params = useLocalSearchParams<{ interest?: string }>();
+  const [all, setAll] = useState<Profile[]>([]),
+    [loading, setLoading] = useState(false),
+    [error, setError] = useState(""),
+    [format, setFormat] = useState(""),
+    [availability, setAvailability] = useState("");
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      if (session) {
+        setLoading(true);
+        profiles()
+          .then((data) => {
+            if (alive) {
+              setAll(data);
+              setError("");
+            }
+          })
+          .catch((e) => {
+            if (alive) setError(errorMessage(e));
+          })
+          .finally(() => {
+            if (alive) setLoading(false);
+          });
+      }
+      return () => {
+        alive = false;
+      };
+    }, [session?.user.id]),
+  );
+  const matches = profile
+    ? recommend(profile, all, params.interest).filter(
+        (m) =>
+          !active ||
+          ((!format || m.profile.preferred_format === format) &&
+            (!availability || m.profile.availability === availability)),
+      )
+    : [];
+  return (
+    <Page
+      title="Find your next collaborator."
+      subtitle="Shared curiosity. Complementary skills. A clear reason to create together."
+    >
+      <View style={ui.row}>
+        <Button secondary label="My DNA" onPress={() => router.push("/dna")} />
+        <Button
+          secondary
+          label="Collaborations"
+          onPress={() => router.push("/collaborations")}
+        />
+        <Button
+          secondary
+          label="My profile"
+          onPress={() => router.push("/profile")}
+        />
+      </View>
+      {authLoading || loading ? (
+        <Loading />
+      ) : !session ? (
+        <View style={ui.card}>
+          <Text style={ui.heading}>Meet real creators.</Text>
+          <Text style={ui.body}>
+            Sign in to see people who have chosen to make their profiles
+            discoverable.
+          </Text>
+          <Button
+            label="Sign in / Create account"
+            onPress={() => router.push("/auth")}
+          />
+        </View>
+      ) : !profile?.is_onboarded ? (
+        <View style={ui.card}>
+          <Text style={ui.body}>
+            Add your interests, skills and collaboration goal to get useful
+            suggestions.
+          </Text>
+          <Button
+            label="Complete my profile"
+            onPress={() => router.push("/profile")}
+          />
+        </View>
+      ) : (
+        <>
+          {!!params.interest && (
+            <View style={ui.row}>
+              <Text style={ui.body}>Exploring {params.interest}</Text>
+              <Button
+                secondary
+                label="All my interests"
+                onPress={() => router.replace("/discover")}
+              />
+            </View>
+          )}
+          {active ? (
+            <View style={ui.card}>
+              <Text style={ui.eyebrow}>CREATOR PASS FILTERS</Text>
+              <Chips
+                options={["Any format", ...FORMATS]}
+                selected={[format || "Any format"]}
+                onSelect={(v) => setFormat(v === "Any format" ? "" : v)}
+              />
+              <Chips
+                options={["Any availability", ...AVAILABILITY]}
+                selected={[availability || "Any availability"]}
+                onSelect={(v) =>
+                  setAvailability(v === "Any availability" ? "" : v)
+                }
+              />
+            </View>
+          ) : (
+            <Button
+              secondary
+              label="Explore optional Creator Pass filters"
+              onPress={() => router.push("/offer")}
+            />
+          )}
+          <Notice error text={error} />
+          {!error && matches.length === 0 && (
+            <View style={ui.card}>
+              <Text style={ui.heading}>Your circle is still growing.</Text>
+              <Text style={ui.body}>
+                There are no matching discoverable creators for these selections
+                yet. Try another niche or invite a creator to join.
+              </Text>
+              <Button
+                secondary
+                label="Explore more niches"
+                onPress={() => router.push("/onboarding")}
+              />
+              <Button
+                label="Share my DNA and invite a creator"
+                onPress={() => {
+                  void shareDna(profile).catch((e) =>
+                    setError(errorMessage(e)),
+                  );
+                }}
+              />
+            </View>
+          )}
+          {matches.map((m) => (
+            <View style={ui.card} key={m.profile.id}>
+              <View style={ui.row}>
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 17,
+                    backgroundColor: "#E9DDFF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={ui.heading}>
+                    {m.profile.display_name.slice(0, 1)}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={ui.heading}>{m.profile.display_name}</Text>
+                  <Text style={ui.note}>
+                    @{m.profile.username} · {m.profile.creator_type}
+                  </Text>
+                </View>
+              </View>
+              {!!m.profile.creative_goal && (
+                <Text style={ui.body}>{m.profile.creative_goal}</Text>
+              )}
+              <Text style={ui.eyebrow}>WHY YOU COULD CREATE TOGETHER</Text>
+              {m.reasons.map((r) => (
+                <Text key={r} style={ui.body}>
+                  • {r}
+                </Text>
+              ))}
+              <Text style={ui.note}>
+                {m.profile.intent} · {m.profile.availability}
+              </Text>
+              <Button
+                label={
+                  m.profile.intent === "Audience Share"
+                    ? "Plan an Audience Share collaboration"
+                    : "Start a collaboration →"
+                }
+                onPress={() =>
+                  router.push({
+                    pathname: "/collaboration/new",
+                    params: { creator: m.profile.id },
+                  })
+                }
+              />
+            </View>
+          ))}
+          {!!error && (
+            <Button
+              secondary
+              label="Try again"
+              onPress={() => router.replace("/discover")}
+            />
+          )}
+        </>
+      )}
+    </Page>
+  );
+}

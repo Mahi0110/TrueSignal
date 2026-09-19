@@ -1,0 +1,5 @@
+# The app endpoint verifies the caller with Auth /user; the webhook verifies Stripe's raw-body signature.
+[functions.creator-billing]
+verify_jwt = false
+[functions.stripe-loyalty-webhook]
+verify_jwt = false

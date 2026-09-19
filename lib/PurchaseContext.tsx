@@ -6,11 +6,12 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { AppState, Platform } from "react-native";
+import { AppState, Platform, Linking } from "react-native";
 import Constants from "expo-constants";
 import type { CustomerInfo } from "react-native-purchases";
 import { useApp } from "./AppContext";
 import { errorMessage } from "./api";
+import { webBilling, webBillingEnabled, type WebBillingStatus } from "./webBilling";
 let identity: string | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 function serial<T>(action: () => Promise<T>): Promise<T> {
@@ -20,6 +21,7 @@ function serial<T>(action: () => Promise<T>): Promise<T> {
 }
 const Context = createContext({
   active: false,
+  webStatus: null as WebBillingStatus | null,
   busy: false,
   message: "",
   open: async (_restore = false) => {},
@@ -34,6 +36,7 @@ export function PurchaseProvider({ children }: PropsWithChildren) {
     uid: string;
     active: boolean;
   } | null>(null);
+  const [webState, setWebState] = useState<{ uid: string; status: WebBillingStatus } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const key =
@@ -52,6 +55,29 @@ export function PurchaseProvider({ children }: PropsWithChildren) {
         active: !!info.entitlements.active[entitlementId],
       });
   };
+  async function refreshWeb(owner: string) {
+    const status = await webBilling<WebBillingStatus>("status");
+    if (currentUser.current === owner) {
+      setWebState({ uid: owner, status });
+      setEntitlement({ uid: owner, active: status.active });
+    }
+    return status;
+  }
+  useEffect(() => {
+    setWebState(null);
+    if (Platform.OS !== "web" || !webBillingEnabled || !uid) return;
+    let alive = true;
+    const owner = uid;
+    const refresh = async () => {
+      try { await refreshWeb(owner); }
+      catch (e) { if (alive && currentUser.current === owner) {
+        setEntitlement(null); setWebState(null); setMessage(errorMessage(e));
+      } }
+    };
+    void refresh();
+    const listener = AppState.addEventListener("change", (state) => { if (state === "active") void refresh(); });
+    return () => { alive = false; listener.remove(); };
+  }, [uid]);
   async function client(owner: string) {
     if (!supported)
       throw new Error(
@@ -126,6 +152,16 @@ export function PurchaseProvider({ children }: PropsWithChildren) {
     const owner = uid;
     setBusy(true);
     try {
+      if (Platform.OS === "web") {
+        if (restore) {
+          const status = await refreshWeb(owner);
+          if (currentUser.current === owner) setMessage(status.active ? "Your Creator Pass is active." : "No active pass yet. If you just paid, wait a moment and refresh access.");
+        } else {
+          const result = await webBilling<{ url: string }>("checkout");
+          if (currentUser.current === owner) await Linking.openURL(result.url);
+        }
+        return;
+      }
       await serial(async () => {
         if (currentUser.current !== owner) return;
         const P = await client(owner);
@@ -162,7 +198,13 @@ export function PurchaseProvider({ children }: PropsWithChildren) {
   async function manage() {
     if (!uid || busy) return;
     setBusy(true);
+    const owner = uid;
     try {
+      if (Platform.OS === "web") {
+        const result = await webBilling<{ url: string }>("portal");
+        if (currentUser.current === owner) await Linking.openURL(result.url);
+        return;
+      }
       await serial(async () => {
         await client(uid);
         await (
@@ -179,6 +221,7 @@ export function PurchaseProvider({ children }: PropsWithChildren) {
     <Context.Provider
       value={{
         active: entitlement?.uid === uid && !!entitlement?.active,
+        webStatus: webState && webState.uid === uid ? webState.status : null,
         busy,
         message,
         open,

@@ -12,7 +12,7 @@ Creator discovery through shared interests, complementary skills, and a concrete
 
 Audience Share records self-reported post links, not reach or impressions. It does not automatically publish posts or exchange follower lists. Messaging currently refreshes on screen focus or using Refresh; push notifications and realtime delivery are not implemented.
 
-Creator Pass optionally unlocks advanced discovery filters and brief export in native builds. Discovery, requests, messaging, and Audience Share remain free. See [REVENUECAT.md](REVENUECAT.md).
+Creator Pass optionally unlocks advanced discovery filters and brief export in native builds. Discovery, requests, messaging, and Audience Share remain free. See [REVENUECAT.md](REVENUECAT.md). Optional web checkout with 5–20% renewal loyalty discounts is available behind a disabled-by-default flag; setup and sandbox release gates are in [LOYALTY_BILLING.md](LOYALTY_BILLING.md).
 
 ## Run locally
 
